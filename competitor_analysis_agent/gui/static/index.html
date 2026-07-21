@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Rakip ve Pazar Analizi Ajanı</title>
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+<header class="topbar">
+  <h1>Rakip ve Pazar Analizi Ajanı</h1>
+  <span id="status-pill" class="pill pill-idle">Hazır</span>
+</header>
+
+<main>
+  <section class="panel" id="form-panel">
+    <h2>1. İş Modeli / Hedef Ürün</h2>
+    <form id="analyze-form">
+      <label for="project-description">Proje / ürün açıklaması</label>
+      <textarea id="project-description" rows="4" placeholder="Örn: AI destekli kişisel bütçe ve tasarruf uygulaması" required></textarea>
+
+      <label for="project-name">Proje adı (opsiyonel)</label>
+      <input id="project-name" type="text" placeholder="Boş bırakılırsa açıklamadan türetilir" />
+
+      <div class="row">
+        <div class="field">
+          <label for="max-competitors">Maks. rakip sayısı</label>
+          <input id="max-competitors" type="number" min="1" max="50" value="10" />
+        </div>
+        <div class="field mode-field">
+          <label>Koşu modu</label>
+          <div class="mode-toggle">
+            <button type="button" class="mode-btn active" data-mode="dry_run">Dry-Run (Test)</button>
+            <button type="button" class="mode-btn" data-mode="live">Live Run (Canlı)</button>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" id="start-btn">Analizi Başlat</button>
+    </form>
+  </section>
+
+  <section class="panel" id="log-panel">
+    <h2>2. Canlı Log Akışı</h2>
+    <pre id="log-output" class="log-output">Analiz başlatıldığında loglar burada akacak…</pre>
+  </section>
+
+  <section class="panel" id="results-panel" hidden>
+    <h2>3. Sonuç &amp; Rapor</h2>
+
+    <div class="results-grid">
+      <div class="card">
+        <h3>Önerilen Kıta</h3>
+        <p id="res-continent" class="big-value">-</p>
+      </div>
+      <div class="card">
+        <h3>Önerilen Giriş Fiyatı</h3>
+        <p id="res-entry-price" class="big-value">-</p>
+      </div>
+    </div>
+
+    <h3>İlk 3 Ülke</h3>
+    <table class="data-table">
+      <thead><tr><th>#</th><th>Ülke</th><th>PPP Durumu</th><th>Gerekçe</th></tr></thead>
+      <tbody id="res-countries"></tbody>
+    </table>
+
+    <h3>Fiyat Matrisi</h3>
+    <table class="data-table">
+      <thead><tr><th>Min</th><th>Ortalama</th><th>Maks</th><th>Önerilen Giriş</th><th>Gerekçe</th></tr></thead>
+      <tbody id="res-pricing"></tbody>
+    </table>
+
+    <h3>Stratejik Ek Değer Önerileri</h3>
+    <table class="data-table">
+      <thead><tr><th>Rakip Zayıflığı</th><th>Önerilen Özellik</th></tr></thead>
+      <tbody id="res-value-adds"></tbody>
+    </table>
+
+    <h3>Viral İçerik Anatomi Analizi</h3>
+    <div id="res-viral" class="viral-grid"></div>
+  </section>
+</main>
+
+<script src="/app.js"></script>
+</body>
+</html>
