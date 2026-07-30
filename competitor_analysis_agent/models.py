@@ -88,26 +88,33 @@ class StrategicValueAdd(BaseModel):
 class MarketAndGapAnalysis(BaseModel):
     id: uuid.UUID = Field(default_factory=uuid.uuid4)
     project_name: str
-    recommended_continent: str
-    top_3_countries: list[TopCountry]
-    pricing_matrix: PricingMatrix
-    strategic_value_adds: list[StrategicValueAdd]
+    project_description: str = ""
+    modules_run: dict[str, bool] = Field(default_factory=dict)
+    recommended_continent: str | None = None
+    top_3_countries: list[TopCountry] | None = None
+    pricing_matrix: PricingMatrix | None = None
+    strategic_value_adds: list[StrategicValueAdd] | None = None
     created_at: datetime = Field(default_factory=_utcnow)
 
     def to_supabase_row(self) -> dict:
         return {
             "id": str(self.id),
             "project_name": self.project_name,
+            "project_description": self.project_description,
+            "modules_run": self.modules_run,
             "recommended_continent": self.recommended_continent,
-            "top_3_countries": [c.model_dump() for c in self.top_3_countries],
-            "pricing_matrix": self.pricing_matrix.model_dump(),
-            "strategic_value_adds": [v.model_dump() for v in self.strategic_value_adds],
+            "top_3_countries": [c.model_dump() for c in self.top_3_countries] if self.top_3_countries else None,
+            "pricing_matrix": self.pricing_matrix.model_dump() if self.pricing_matrix else None,
+            "strategic_value_adds": (
+                [v.model_dump() for v in self.strategic_value_adds] if self.strategic_value_adds else None
+            ),
             "created_at": self.created_at.isoformat(),
         }
 
 
 class ViralContent(BaseModel):
     id: uuid.UUID = Field(default_factory=uuid.uuid4)
+    project_id: uuid.UUID | None = None
     competitor_name: str
     content_url: str | None = None
     platform: str
@@ -131,6 +138,7 @@ class ViralContent(BaseModel):
     def to_supabase_row(self) -> dict:
         return {
             "id": str(self.id),
+            "project_id": str(self.project_id) if self.project_id else None,
             "competitor_name": self.competitor_name,
             "content_url": self.content_url,
             "platform": self.platform,
@@ -139,5 +147,45 @@ class ViralContent(BaseModel):
             "body_and_value": self.body_and_value,
             "call_to_action": self.call_to_action,
             "overall_summary": self.overall_summary,
+            "created_at": self.created_at.isoformat(),
+        }
+
+
+# Tier 1 = Ayna (re-skin): mesaj/kanca/mantık aynı, görsel+kelimeler hafif
+# güncellenmiş. Tier 2 = Hibrit: ana anlam aynı + bizim değer önerilerimiz
+# eklenmiş. Tier 3 = Özgün: aynı çekirdek mesaj, baştan yazılmış.
+TIER_LABELS: dict[int, str] = {1: "Ayna", 2: "Hibrit", 3: "Özgün"}
+
+
+class ContentSkeleton(BaseModel):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4)
+    project_id: uuid.UUID | None = None
+    source_viral_content_id: uuid.UUID | None = None
+    competitor_name: str
+    platform: str
+    tier_type: int
+    tier_label: str
+    skeleton_data: dict
+    status: str = "PENDING"
+    created_at: datetime = Field(default_factory=_utcnow)
+
+    @field_validator("tier_type")
+    @classmethod
+    def _validate_tier_type(cls, v: int) -> int:
+        if v not in TIER_LABELS:
+            raise ValueError(f"tier_type must be one of {sorted(TIER_LABELS)}, got {v}")
+        return v
+
+    def to_supabase_row(self) -> dict:
+        return {
+            "id": str(self.id),
+            "project_id": str(self.project_id) if self.project_id else None,
+            "source_viral_content_id": str(self.source_viral_content_id) if self.source_viral_content_id else None,
+            "competitor_name": self.competitor_name,
+            "platform": self.platform,
+            "tier_type": self.tier_type,
+            "tier_label": self.tier_label,
+            "skeleton_data": self.skeleton_data,
+            "status": self.status,
             "created_at": self.created_at.isoformat(),
         }

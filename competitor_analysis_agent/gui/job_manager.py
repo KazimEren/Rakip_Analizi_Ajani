@@ -19,7 +19,10 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from competitor_analysis_agent.config import Settings
-from competitor_analysis_agent.orchestrator import run_pipeline
+from competitor_analysis_agent.db.repository import get_repository
+from competitor_analysis_agent.llm.gemini_client import get_llm_client
+from competitor_analysis_agent.orchestrator import discover_competitors, run_content_module, run_pipeline
+from competitor_analysis_agent.scraping.scraper import get_scraper
 
 _LOG_QUEUE_LOGGER_NAME = "competitor_analysis_agent"
 
@@ -36,6 +39,7 @@ class LogRecord:
 class Job:
     id: str
     status: str = "running"  # running | done | error
+    kind: str = "analyze"  # analyze | content_skeletons -- result shape differs, see /api/results
     dry_run: bool = True
     project_name: str = ""
     started_at: float = field(default_factory=time.time)
@@ -87,6 +91,8 @@ class JobManager:
         project_name: str,
         settings: Settings,
         dry_run: bool,
+        modules: dict[str, bool] | None = None,
+        content_skeleton_count: int = 3,
     ) -> Job:
         if self.is_running():
             raise RuntimeError("Zaten çalışan bir analiz var. Önce onun bitmesini bekleyin.")
@@ -97,7 +103,7 @@ class JobManager:
 
         thread = threading.Thread(
             target=self._run,
-            args=(job, project_description, project_name, settings, dry_run),
+            args=(job, project_description, project_name, settings, dry_run, modules, content_skeleton_count),
             daemon=True,
         )
         thread.start()
@@ -110,6 +116,8 @@ class JobManager:
         project_name: str,
         settings: Settings,
         dry_run: bool,
+        modules: dict[str, bool] | None,
+        content_skeleton_count: int,
     ) -> None:
         pipeline_logger = logging.getLogger(_LOG_QUEUE_LOGGER_NAME)
         handler = _QueueLogHandler(job)
@@ -120,18 +128,101 @@ class JobManager:
 
         job.append_log("INFO", f"Analiz başlatıldı ({'dry-run' if dry_run else 'live'} mod).")
         try:
-            market_analysis, viral_contents = run_pipeline(
+            market_analysis, viral_contents, content_skeletons = run_pipeline(
                 project_description=project_description,
                 project_name=project_name,
                 settings=settings,
                 dry_run=dry_run,
+                modules=modules,
+                content_skeleton_count=content_skeleton_count,
             )
             job.result = {
                 "market_analysis": market_analysis.model_dump(mode="json"),
                 "viral_contents": [v.model_dump(mode="json") for v in viral_contents],
+                "content_skeletons": [c.model_dump(mode="json") for c in content_skeletons],
             }
             job.status = "done"
             job.append_log("INFO", "Analiz başarıyla tamamlandı.")
+        except Exception as exc:  # noqa: BLE001 - surfaced to the GUI, not swallowed
+            job.error = f"{exc}\n\n{traceback.format_exc()}"
+            job.status = "error"
+            job.append_log("ERROR", f"Hata: {exc}")
+        finally:
+            job.finished_at = time.time()
+            pipeline_logger.removeHandler(handler)
+            pipeline_logger.setLevel(previous_level)
+
+    def start_content_skeletons(
+        self,
+        project_id: str,
+        project_description: str,
+        project_name: str,
+        count: int,
+        settings: Settings,
+        dry_run: bool,
+    ) -> Job:
+        """Scoped re-run of just the content-skeleton module (checkbox 3)
+        against an already-analyzed project, triggered from the "Geçmiş
+        Projelerim" panel's "Dinamik Yeni İçerik İskeleti Çıkar" button."""
+        if self.is_running():
+            raise RuntimeError("Zaten çalışan bir analiz var. Önce onun bitmesini bekleyin.")
+
+        job = Job(id=str(uuid.uuid4()), kind="content_skeletons", dry_run=dry_run, project_name=project_name)
+        with self._lock:
+            self._current = job
+
+        thread = threading.Thread(
+            target=self._run_content_skeletons,
+            args=(job, project_id, project_description, settings, dry_run, count),
+            daemon=True,
+        )
+        thread.start()
+        return job
+
+    def _run_content_skeletons(
+        self,
+        job: Job,
+        project_id: str,
+        project_description: str,
+        settings: Settings,
+        dry_run: bool,
+        count: int,
+    ) -> None:
+        pipeline_logger = logging.getLogger(_LOG_QUEUE_LOGGER_NAME)
+        handler = _QueueLogHandler(job)
+        handler.setFormatter(logging.Formatter("%(message)s"))
+        previous_level = pipeline_logger.level
+        pipeline_logger.addHandler(handler)
+        pipeline_logger.setLevel(logging.INFO)
+
+        job.append_log(
+            "INFO",
+            f"Proje {project_id} için içerik iskeleti yeniden üretiliyor "
+            f"({'dry-run' if dry_run else 'live'} mod, {count} içerik).",
+        )
+        try:
+            llm = get_llm_client(settings, dry_run)
+            scraper = get_scraper(settings, dry_run)
+            competitors = discover_competitors(llm, scraper, project_description)
+            viral_contents, content_skeletons = run_content_module(llm, scraper, competitors, count)
+
+            project_uuid = uuid.UUID(project_id)
+            for vc in viral_contents:
+                vc.project_id = project_uuid
+            for cs in content_skeletons:
+                cs.project_id = project_uuid
+
+            repository = get_repository(settings, dry_run)
+            repository.save_viral_contents(viral_contents)
+            repository.save_content_skeletons(content_skeletons)
+
+            job.result = {
+                "project_id": project_id,
+                "viral_contents": [v.model_dump(mode="json") for v in viral_contents],
+                "content_skeletons": [c.model_dump(mode="json") for c in content_skeletons],
+            }
+            job.status = "done"
+            job.append_log("INFO", "İçerik iskeleti üretimi tamamlandı.")
         except Exception as exc:  # noqa: BLE001 - surfaced to the GUI, not swallowed
             job.error = f"{exc}\n\n{traceback.format_exc()}"
             job.status = "error"

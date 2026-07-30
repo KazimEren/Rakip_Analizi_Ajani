@@ -155,4 +155,24 @@ MOCK_LLM_RESPONSES: dict[str, dict] = {
         "call_to_action": "Aciliyet hissi yaratan bir kaydetme çağrısıyla kapanıyor ('Cuma'dan önce bunu kaydet'), dikkati sadece beğeniye değil kaydetme/paylaşma eylemine dönüştürüyor.",
         "overall_summary": "İşe yarıyor çünkü hissedilen bir duyguyu (maaş günü kaygısı) doğal olarak kaydedilebilir bir kontrol listesi formatına dönüştürüyor ve ürün arayüzünü satış havasında olmayan, organik bir kanıt olarak kullanıyor.",
     },
+    "Step6LLMOutput": {
+        "tier1_ayna": {
+            "hook": "Aynı POV ekran kaydı kancası, kendi uygulama arayüzümüzle yeniden çekilir; metin stili ve zamanlama birebir korunur.",
+            "intro": "Aynı 'fazla harcamak üzere olduğunuzun 3 işareti' merak boşluğu, marka renklerimizle güncellenmiş metin overlay'i.",
+            "body": "Aynı otomatik kategorilendirme gösterimi, kendi uygulama ekranlarımızla birebir aynı akışta.",
+            "cta": "Aynı 'Cuma'dan önce kaydet' çağrısı, kendi marka adımızla.",
+        },
+        "tier2_hibrit": {
+            "hook": "Aynı maaş günü kaygısı kancası, ek olarak 've nasıl önleneceği' vaadini de baştan ekleriz.",
+            "intro": "Aynı 3 işaret çerçevesi, üzerine bizim ortak bütçe modumuzun farkını vurgulayan bir cümle eklenir.",
+            "body": "Otomatik kategorilendirmeyi gösteririz, ardından rakipte olmayan aile/ortak bütçe özelliğimizi ekstra değer olarak sergileriz.",
+            "cta": "Kaydetme çağrısına ek olarak ücretsiz deneme bağlantısı eklenir.",
+        },
+        "tier3_ozgun": {
+            "hook": "Tamamen farklı bir açılış: gerçek bir kullanıcı itirafı formatında, kendi sesimizle yazılmış özgün bir kanca.",
+            "intro": "Aynı duygu (maaş günü kaygısı) ama sıfırdan kurgulanmış, kendi anlatım dilimizle bir hikaye çerçevesi.",
+            "body": "Ürünümüzün otomatik kategorilendirme ve ortak bütçe özelliklerini kendi özgün örnek senaryomuzla anlatırız.",
+            "cta": "Kendi marka sesimizle yazılmış, özgün bir kaydetme/takip çağrısı.",
+        },
+    },
 }

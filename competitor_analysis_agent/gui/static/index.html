@@ -9,77 +9,100 @@
 <body>
 <header class="topbar">
   <h1>Rakip ve Pazar Analizi Ajanı</h1>
+  <nav class="view-tabs">
+    <button type="button" class="view-tab active" data-view="analyze">Yeni Analiz</button>
+    <button type="button" class="view-tab" data-view="history">Geçmiş Projelerim</button>
+  </nav>
   <span id="status-pill" class="pill pill-idle">Hazır</span>
 </header>
 
 <main>
-  <section class="panel" id="form-panel">
-    <h2>1. İş Modeli / Hedef Ürün</h2>
-    <form id="analyze-form">
-      <label for="project-description">Proje / ürün açıklaması</label>
-      <textarea id="project-description" rows="4" placeholder="Örn: AI destekli kişisel bütçe ve tasarruf uygulaması" required></textarea>
+  <div id="view-analyze" class="view">
+    <section class="panel" id="form-panel">
+      <h2>1. İş Modeli / Hedef Ürün</h2>
+      <form id="analyze-form">
+        <label for="project-description">Proje / ürün açıklaması</label>
+        <textarea id="project-description" rows="4" placeholder="Örn: AI destekli kişisel bütçe ve tasarruf uygulaması" required></textarea>
 
-      <label for="project-name">Proje adı (opsiyonel)</label>
-      <input id="project-name" type="text" placeholder="Boş bırakılırsa açıklamadan türetilir" />
+        <label for="project-name">Proje adı (opsiyonel)</label>
+        <input id="project-name" type="text" placeholder="Boş bırakılırsa açıklamadan türetilir" />
 
-      <div class="row">
-        <div class="field">
-          <label for="max-competitors">Maks. rakip sayısı</label>
-          <input id="max-competitors" type="number" min="1" max="50" value="10" />
+        <label>Çalıştırılacak Modüller</label>
+        <div class="checkbox-group">
+          <label class="checkbox-item">
+            <input type="checkbox" id="mod-market" />
+            1. Pazar Analizi &amp; Hedef Kitle
+          </label>
+          <label class="checkbox-item">
+            <input type="checkbox" id="mod-pricing" />
+            2. Fiyatlandırma Stratejisi
+          </label>
+          <label class="checkbox-item">
+            <input type="checkbox" id="mod-content" />
+            3. Tutan İçerik İskeletleri
+          </label>
+          <div class="field sub-field" id="content-count-field" hidden>
+            <label for="content-skeleton-count">Kaç adet rakip içeriği incelensin?</label>
+            <input id="content-skeleton-count" type="number" min="1" max="10" value="3" />
+          </div>
+          <label class="checkbox-item">
+            <input type="checkbox" id="mod-gap" />
+            4. Ekstra Özellik &amp; Fırsat Analizi (Yorum/Eksik Analizi)
+          </label>
         </div>
-        <div class="field mode-field">
-          <label>Koşu modu</label>
-          <div class="mode-toggle">
-            <button type="button" class="mode-btn active" data-mode="dry_run">Dry-Run (Test)</button>
-            <button type="button" class="mode-btn" data-mode="live">Live Run (Canlı)</button>
+        <p id="module-warning" class="warning-text" hidden>En az bir modül seçmelisiniz.</p>
+
+        <div class="row">
+          <div class="field">
+            <label for="max-competitors">Maks. rakip sayısı</label>
+            <input id="max-competitors" type="number" min="1" max="50" value="10" />
+          </div>
+          <div class="field mode-field">
+            <label>Koşu modu</label>
+            <div class="mode-toggle">
+              <button type="button" class="mode-btn active" data-mode="dry_run">Dry-Run (Test)</button>
+              <button type="button" class="mode-btn" data-mode="live">Live Run (Canlı)</button>
+            </div>
           </div>
         </div>
+
+        <button type="submit" id="start-btn">Analizi Başlat</button>
+      </form>
+    </section>
+
+    <section class="panel" id="log-panel">
+      <h2>2. Canlı Log Akışı</h2>
+      <pre id="log-output" class="log-output">Analiz başlatıldığında loglar burada akacak…</pre>
+    </section>
+
+    <section class="panel" id="results-panel" hidden>
+      <h2>3. Sonuç &amp; Rapor</h2>
+      <div id="results-body"></div>
+    </section>
+  </div>
+
+  <div id="view-history" class="view" hidden>
+    <section class="panel" id="history-list-panel">
+      <h2>Geçmiş Projelerim</h2>
+      <div id="history-list"></div>
+    </section>
+
+    <section class="panel" id="history-detail-panel" hidden>
+      <h2>Proje Detayı</h2>
+      <div class="row">
+        <div class="field">
+          <label for="history-skeleton-count">Kaç adet rakip içeriği incelensin?</label>
+          <input id="history-skeleton-count" type="number" min="1" max="10" value="3" />
+        </div>
+        <div class="field history-retrigger-field">
+          <label>&nbsp;</label>
+          <button type="button" id="history-retrigger-btn">Dinamik Yeni İçerik İskeleti Çıkar</button>
+        </div>
       </div>
-
-      <button type="submit" id="start-btn">Analizi Başlat</button>
-    </form>
-  </section>
-
-  <section class="panel" id="log-panel">
-    <h2>2. Canlı Log Akışı</h2>
-    <pre id="log-output" class="log-output">Analiz başlatıldığında loglar burada akacak…</pre>
-  </section>
-
-  <section class="panel" id="results-panel" hidden>
-    <h2>3. Sonuç &amp; Rapor</h2>
-
-    <div class="results-grid">
-      <div class="card">
-        <h3>Önerilen Kıta</h3>
-        <p id="res-continent" class="big-value">-</p>
-      </div>
-      <div class="card">
-        <h3>Önerilen Giriş Fiyatı</h3>
-        <p id="res-entry-price" class="big-value">-</p>
-      </div>
-    </div>
-
-    <h3>İlk 3 Ülke</h3>
-    <table class="data-table">
-      <thead><tr><th>#</th><th>Ülke</th><th>PPP Durumu</th><th>Gerekçe</th></tr></thead>
-      <tbody id="res-countries"></tbody>
-    </table>
-
-    <h3>Fiyat Matrisi</h3>
-    <table class="data-table">
-      <thead><tr><th>Min</th><th>Ortalama</th><th>Maks</th><th>Önerilen Giriş</th><th>Gerekçe</th></tr></thead>
-      <tbody id="res-pricing"></tbody>
-    </table>
-
-    <h3>Stratejik Ek Değer Önerileri</h3>
-    <table class="data-table">
-      <thead><tr><th>Rakip Zayıflığı</th><th>Önerilen Özellik</th></tr></thead>
-      <tbody id="res-value-adds"></tbody>
-    </table>
-
-    <h3>Viral İçerik Anatomi Analizi</h3>
-    <div id="res-viral" class="viral-grid"></div>
-  </section>
+      <pre id="history-log-output" class="log-output" hidden></pre>
+      <div id="history-results"></div>
+    </section>
+  </div>
 </main>
 
 <script src="/app.js"></script>

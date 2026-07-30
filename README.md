@@ -36,6 +36,16 @@ modu) `.env` içinde tanımlıysa tablolar doğrudan oluşturulur. Tanımlı
 değilse, komut `competitor_analysis_agent/db/schema.sql` içeriğini ekrana
 basar — bunu Supabase Dashboard > SQL Editor'e yapıştırıp çalıştırın.
 
+**Şema notu (seçmeli modül çalıştırma + içerik iskeleti geçmişi):**
+`market_and_gap_analysis`'a `project_description` ve `modules_run` eklendi;
+coğrafi/fiyat/gap kolonları artık nullable (bir çalıştırmada seçilmeyen
+modül için `NULL` kalır). `viral_contents`'e `project_id` eklendi ve yeni
+`content_skeletons` tablosu (Tier 1/2/3 = Ayna/Hibrit/Özgün içerik
+iskeletleri) tanımlandı. `CREATE TABLE IF NOT EXISTS` var olan bir tabloyu
+değiştirmez, sadece eksikse oluşturur -- bu şemadan önce oluşturulmuş bir
+Supabase projeniz varsa, önce `market_and_gap_analysis` ve `viral_contents`
+tablolarını Supabase Dashboard'dan silip `setup_db.py`'yi tekrar çalıştırın.
+
 ## Çalıştırma
 
 ```bash
@@ -54,7 +64,13 @@ pytest tests/
 
 `test_pricing.py` ve `test_geo_filter.py` ağ gerektirmeyen saf mantık
 testleridir. `test_orchestrator_dry_run.py` tüm 5 adımı mock modda uçtan uca
-çalıştırıp çıktının iki Supabase tablosunun şemasına uyduğunu doğrular.
+çalıştırıp çıktının üç Supabase tablosunun (market_and_gap_analysis,
+viral_contents, content_skeletons) şemasına uyduğunu doğrular.
+`test_orchestrator_module_selection.py` seçmeli modül çalıştırmayı (sadece
+işaretlenen modülün scraping tetiklediğini) ve etkileşim-bazlı içerik
+filtresini, `test_step6_content_tiering.py` Tier 1/2/3 üretimini,
+`test_repository_history.py` geçmiş projeler listesi/detayı ve
+biriktirme (append) davranışını doğrular.
 
 ## Masaüstü Web Arayüzü (GUI)
 
@@ -74,6 +90,26 @@ python run_app.py
 Formdan proje açıklamasını girip Dry-Run veya Live Run modunu seçin; canlı
 loglar ve sonuçlar (fiyat matrisi, ilk 3 ülke, stratejik öneriler, viral
 içerik anatomisi) aynı sayfada akar/görüntülenir.
+
+**Seçmeli modül çalıştırma:** Formda 4 checkbox var (Pazar Analizi, Fiyatlandırma,
+Tutan İçerik İskeletleri, Ekstra Özellik & Fırsat Analizi) -- sadece
+işaretlenen modüller için scraping/LLM çağrısı yapılır, token/kredi
+harcanmaz. "Tutan İçerik İskeletleri" işaretlenince kaç rakip içeriği
+inceleneceğini soran bir sayı kutusu açılır; en yüksek etkileşimli o kadar
+içerik seçilip her biri için Tier 1/2/3 (Ayna/Hibrit/Özgün) içerik iskeleti
+üretilir.
+
+**Geçmiş Projelerim:** Üstteki sekmeden geçmişte çalıştırılmış projeler
+listelenir (Supabase'den veya dry-run'da `output/projects/*.json`'dan);
+bir projeye tıklayınca o projenin tüm sonuçları yüklenir. Proje detayında
+"Dinamik Yeni İçerik İskeleti Çıkar" butonuyla, sadece içerik iskeleti
+modülü o proje için (kayıtlı proje açıklaması yeniden kullanılarak) istenen
+sayıda içerikle tekrar çalıştırılabilir; üretilenler öncekinin üzerine
+eklenir, üzerine yazmaz.
+
+Backend endpoint'leri: `POST /api/analyze`, `GET /api/status`,
+`GET /api/logs`, `GET /api/results`, `GET /api/projects`,
+`GET /api/projects/{id}`, `POST /api/projects/{id}/content-skeletons`.
 
 **Çift tıklanabilir `.exe` üretme:**
 

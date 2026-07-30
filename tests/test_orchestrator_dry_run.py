@@ -1,12 +1,14 @@
-import json
 from pathlib import Path
 
 from competitor_analysis_agent.config import Settings
+from competitor_analysis_agent.db.repository import LocalJsonRepository
 from competitor_analysis_agent.orchestrator import run_pipeline
 
 MARKET_FIELDS = [
     "id",
     "project_name",
+    "project_description",
+    "modules_run",
     "recommended_continent",
     "top_3_countries",
     "pricing_matrix",
@@ -16,6 +18,7 @@ MARKET_FIELDS = [
 
 VIRAL_FIELDS = [
     "id",
+    "project_id",
     "competitor_name",
     "content_url",
     "platform",
@@ -27,11 +30,24 @@ VIRAL_FIELDS = [
     "created_at",
 ]
 
+SKELETON_FIELDS = [
+    "id",
+    "project_id",
+    "source_viral_content_id",
+    "competitor_name",
+    "platform",
+    "tier_type",
+    "tier_label",
+    "skeleton_data",
+    "status",
+    "created_at",
+]
+
 
 def test_full_pipeline_dry_run_writes_schema_valid_output(tmp_path):
     settings = Settings(output_dir=str(tmp_path / "output"))
 
-    market_analysis, viral_contents = run_pipeline(
+    market_analysis, viral_contents, content_skeletons = run_pipeline(
         project_description="AI destekli kişisel bütçe ve tasarruf uygulaması",
         project_name="TestProject",
         settings=settings,
@@ -45,19 +61,35 @@ def test_full_pipeline_dry_run_writes_schema_valid_output(tmp_path):
     assert pm.min_price <= pm.avg_price <= pm.max_price
     assert len(market_analysis.strategic_value_adds) >= 1
     assert len(viral_contents) >= 1
+    # 3 tier (Ayna/Hibrit/Özgün) per selected content item.
+    assert len(content_skeletons) == len(viral_contents) * 3
+    assert all(vc.project_id == market_analysis.id for vc in viral_contents)
+    assert all(cs.project_id == market_analysis.id for cs in content_skeletons)
 
-    market_json_path = Path(settings.output_dir) / "market_and_gap_analysis.json"
-    viral_json_path = Path(settings.output_dir) / "viral_contents.json"
-    assert market_json_path.exists()
-    assert viral_json_path.exists()
+    project_json_path = Path(settings.output_dir) / "projects" / f"{market_analysis.id}.json"
+    assert project_json_path.exists()
 
-    market_row = json.loads(market_json_path.read_text(encoding="utf-8"))
+    repository = LocalJsonRepository(settings.output_dir)
+    project = repository.get_project(str(market_analysis.id))
+    assert project is not None
+
+    market_row = project["market_analysis"]
     for field in MARKET_FIELDS:
         assert field in market_row
 
-    viral_rows = json.loads(viral_json_path.read_text(encoding="utf-8"))
+    viral_rows = project["viral_contents"]
     assert isinstance(viral_rows, list)
     assert len(viral_rows) >= 1
     for row in viral_rows:
         for field in VIRAL_FIELDS:
             assert field in row
+
+    skeleton_rows = project["content_skeletons"]
+    assert isinstance(skeleton_rows, list)
+    assert len(skeleton_rows) == len(viral_rows) * 3
+    for row in skeleton_rows:
+        for field in SKELETON_FIELDS:
+            assert field in row
+
+    projects = repository.list_projects()
+    assert any(p["id"] == str(market_analysis.id) for p in projects)

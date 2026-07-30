@@ -21,7 +21,13 @@ from __future__ import annotations
 
 import json
 
-from competitor_analysis_agent.models import Competitor, PricingDataPoint, RawComplaintText, RawContentItem
+from competitor_analysis_agent.models import (
+    Competitor,
+    PricingDataPoint,
+    RawComplaintText,
+    RawContentItem,
+    ViralContent,
+)
 
 _BASE_SYSTEM = (
     "You are an autonomous market and competitor analysis strategist. "
@@ -253,5 +259,38 @@ def step5_viral_content_prompt(item: RawContentItem) -> tuple[str, str]:
         "- body_and_value (7-25s): the solution/value delivery and narrative flow\n"
         "- call_to_action (25-30s): the closing CTA mechanism\n"
         "- overall_summary: why this content retains attention, algorithmically and psychologically"
+    )
+    return system, user
+
+
+def step6_content_tiering_prompt(item: RawContentItem, viral: ViralContent) -> tuple[str, str]:
+    system = (
+        _BASE_SYSTEM
+        + " Task: this piece of competitor content has already been confirmed as a top "
+        "performer and broken down into its hook/intro/body/CTA anatomy. Now produce 3 "
+        "distinct content-skeleton variations our own project can use, each with its own "
+        "hook/intro/body/cta fields, ready for a downstream content-generation agent:\n"
+        "- tier1_ayna (Mirror/re-skin): the core message, hook and logic stay 100% the "
+        "same as the original; only the visual concept and wording are lightly refreshed "
+        "for our brand.\n"
+        "- tier2_hibrit (Hybrid): the core meaning stays the same, but layer in our own "
+        "value propositions and extra touches on top of it.\n"
+        "- tier3_ozgun (Re-imagined): keep the same core message and emotion, but write it "
+        "entirely from scratch in our own original voice and structure -- it should not "
+        "read like a paraphrase of the original.\n"
+        "Write every field entirely in Turkish, even though the source content below may be "
+        "in another language."
+    )
+    user = (
+        f"Platform: {item.platform}\nCompetitor: {item.competitor_name}\n"
+        f"Original raw text/transcript:\n{item.raw_text_or_transcript}\n\n"
+        "Confirmed retention anatomy of the original:\n"
+        f"- Hook (0-3s): {viral.hook_analysis}\n"
+        f"- Intro/Problem (3-7s): {viral.intro_and_problem}\n"
+        f"- Body/Value (7-25s): {viral.body_and_value}\n"
+        f"- CTA (25-30s): {viral.call_to_action}\n"
+        f"- Why it works: {viral.overall_summary}\n\n"
+        "Produce tier1_ayna, tier2_hibrit and tier3_ozgun, each with hook/intro/body/cta "
+        "fields, in Turkish."
     )
     return system, user

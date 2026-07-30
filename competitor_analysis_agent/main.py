@@ -40,37 +40,37 @@ def main(argv: list[str] | None = None) -> int:
     else:
         print(f"Live modda çalışıyor. Model: {settings.gemini_model}\n")
 
-    market_analysis, viral_contents = run_pipeline(
+    market_analysis, viral_contents, content_skeletons = run_pipeline(
         project_description=args.project_description,
         project_name=project_name,
         settings=settings,
         dry_run=dry_run,
     )
 
-    print(f"Önerilen kıta: {market_analysis.recommended_continent}")
-    print("İlk 3 ülke:")
-    for country in market_analysis.top_3_countries:
-        print(f"  {country.rank}. {country.country} ({country.ppp_status}) - {country.rationale}")
+    if market_analysis.recommended_continent:
+        print(f"Önerilen kıta: {market_analysis.recommended_continent}")
+        print("İlk 3 ülke:")
+        for country in market_analysis.top_3_countries or []:
+            print(f"  {country.rank}. {country.country} ({country.ppp_status}) - {country.rationale}")
 
-    pm = market_analysis.pricing_matrix
-    print(
-        f"\nFiyat matrisi: min={pm.min_price} avg={pm.avg_price} max={pm.max_price} "
-        f"onerilen_giris={pm.recommended_entry_price}"
-    )
+    if market_analysis.pricing_matrix:
+        pm = market_analysis.pricing_matrix
+        print(
+            f"\nFiyat matrisi: min={pm.min_price} avg={pm.avg_price} max={pm.max_price} "
+            f"onerilen_giris={pm.recommended_entry_price}"
+        )
 
-    print(f"\n{len(market_analysis.strategic_value_adds)} strateji önerisi:")
-    for va in market_analysis.strategic_value_adds:
-        print(f"  - {va.competitor_weakness} -> {va.recommended_feature}")
+    if market_analysis.strategic_value_adds is not None:
+        print(f"\n{len(market_analysis.strategic_value_adds)} strateji önerisi:")
+        for va in market_analysis.strategic_value_adds:
+            print(f"  - {va.competitor_weakness} -> {va.recommended_feature}")
 
-    print(f"\n{len(viral_contents)} viral içerik analizi üretildi.")
+    print(f"\n{len(viral_contents)} viral içerik analizi üretildi, {len(content_skeletons)} tier iskeleti üretildi.")
 
     if dry_run:
-        print(
-            f"\nÇıktı yazıldı: {settings.output_dir}/market_and_gap_analysis.json, "
-            f"{settings.output_dir}/viral_contents.json"
-        )
+        print(f"\nÇıktı yazıldı: {settings.output_dir}/projects/{market_analysis.id}.json")
     else:
-        print("\nSupabase tablolarına yazıldı: market_and_gap_analysis, viral_contents")
+        print("\nSupabase tablolarına yazıldı: market_and_gap_analysis, viral_contents, content_skeletons")
 
     return 0
 
