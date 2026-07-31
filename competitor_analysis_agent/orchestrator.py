@@ -16,7 +16,7 @@ import logging
 import re
 
 from competitor_analysis_agent.config import Settings
-from competitor_analysis_agent.db.repository import get_repository
+from competitor_analysis_agent.db.repository import LocalJsonRepository, get_repository
 from competitor_analysis_agent.llm.gemini_client import LLMClient, get_llm_client
 from competitor_analysis_agent.models import (
     Competitor,
@@ -225,9 +225,33 @@ def run_pipeline(
 
     logger.info("Sonuçlar kaydediliyor...")
     repository = get_repository(settings, dry_run)
-    repository.save_market_analysis(market_analysis)
-    repository.save_viral_contents(viral_contents)
-    repository.save_content_skeletons(content_skeletons)
-    logger.info("Kayıt tamamlandı.")
+    try:
+        repository.save_market_analysis(market_analysis)
+        repository.save_viral_contents(viral_contents)
+        repository.save_content_skeletons(content_skeletons)
+        logger.info("Kayıt tamamlandı.")
+    except Exception:
+        # Live-mode DB write failed (e.g. Supabase unreachable) after a
+        # potentially long, costly scraping+LLM run already completed --
+        # write a local backup so the computed results aren't lost, then
+        # still re-raise so the job surfaces as an error (the user needs to
+        # fix the DB connection, not silently think it succeeded).
+        if not dry_run:
+            logger.warning(
+                "Veritabanına kayıt başarısız oldu; sonuçlar kaybolmasın diye yerel yedek "
+                "olarak '%s' altına yazılıyor.",
+                settings.output_dir,
+            )
+            backup_repository = LocalJsonRepository(settings.output_dir)
+            backup_repository.save_market_analysis(market_analysis)
+            backup_repository.save_viral_contents(viral_contents)
+            backup_repository.save_content_skeletons(content_skeletons)
+            logger.warning(
+                "Yerel yedek kaydedildi: %s/projects/%s.json -- veritabanı bağlantısını "
+                "düzelttikten sonra bu sonuçları elle aktarabilirsiniz.",
+                settings.output_dir,
+                market_analysis.id,
+            )
+        raise
 
     return market_analysis, viral_contents, content_skeletons

@@ -23,7 +23,11 @@ Ajan iki modda çalışır:
   dosyalarına yazar. `SUPABASE_URL`/`GEMINI_API_KEY`/`APIFY_API_TOKEN`
   eksikse otomatik olarak bu moda düşer; `--dry-run` ile zorlanabilir.
 - **live**: `.env` içinde tüm gerçek anahtarlar varsa `--live` ile gerçek
-  Gemini/Apify/Playwright/Supabase çağrıları yapılır.
+  Gemini/Apify/Playwright/Supabase çağrıları yapılır. Live modda tüm
+  scraping+LLM adımları bitip Supabase'e kayıt başarısız olursa (örn.
+  `SUPABASE_URL` çözümlenmiyor/proje duraklatılmış), sonuçlar kaybolmaz --
+  otomatik olarak `./output/projects/<id>.json` altına yerel yedek yazılır;
+  Supabase bağlantısını düzelttikten sonra bu dosyadan elle aktarabilirsiniz.
 
 ## Supabase tablolarını oluşturma
 
