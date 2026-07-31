@@ -105,6 +105,18 @@
   </div>
 </main>
 
+<div id="confirm-modal" class="modal-overlay" hidden>
+  <div class="modal-box">
+    <p id="confirm-modal-message">Bu projeyi silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.</p>
+    <div class="modal-actions">
+      <button type="button" id="confirm-modal-cancel" class="modal-btn modal-btn-secondary">İptal</button>
+      <button type="button" id="confirm-modal-confirm" class="modal-btn modal-btn-danger">Evet, Sil</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
 <script src="/app.js"></script>
 </body>
 </html>

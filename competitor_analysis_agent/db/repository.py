@@ -21,6 +21,8 @@ class Repository(Protocol):
 
     def get_project(self, project_id: str) -> dict | None: ...
 
+    def delete_project(self, project_id: str) -> bool: ...
+
 
 class SupabaseRepository:
     def __init__(self, settings: Settings) -> None:
@@ -67,6 +69,15 @@ class SupabaseRepository:
             "viral_contents": viral_response.data or [],
             "content_skeletons": skeleton_response.data or [],
         }
+
+    def delete_project(self, project_id: str) -> bool:
+        # market_and_gap_analysis is the project row; viral_contents.project_id
+        # and content_skeletons.project_id both have ON DELETE CASCADE (see
+        # schema.sql / migrate_v2_selective_modules.sql), so deleting it here
+        # is enough -- Postgres removes the related rows in the other two
+        # tables itself, no explicit child-table deletes needed.
+        response = self._client.table("market_and_gap_analysis").delete().eq("id", project_id).execute()
+        return bool(response.data)
 
 
 class LocalJsonRepository:
@@ -135,6 +146,13 @@ class LocalJsonRepository:
         if not path.exists():
             return None
         return json.loads(path.read_text(encoding="utf-8"))
+
+    def delete_project(self, project_id: str) -> bool:
+        path = self._project_path(project_id)
+        if not path.exists():
+            return False
+        path.unlink()
+        return True
 
 
 def get_repository(settings: Settings, dry_run: bool) -> Repository:

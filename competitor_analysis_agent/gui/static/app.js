@@ -28,6 +28,53 @@ function escapeHtml(value) {
   return div.innerHTML;
 }
 
+// --- Onay modalı + toast bildirimi (silme gibi geri alınamaz işlemler için) ---
+
+const confirmModal = document.getElementById("confirm-modal");
+const confirmModalMessage = document.getElementById("confirm-modal-message");
+const confirmModalCancelBtn = document.getElementById("confirm-modal-cancel");
+const confirmModalConfirmBtn = document.getElementById("confirm-modal-confirm");
+const toastEl = document.getElementById("toast");
+
+let toastTimer = null;
+
+function showToast(message, kind = "success") {
+  toastEl.textContent = message;
+  toastEl.className = `toast toast-${kind}`;
+  toastEl.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toastEl.hidden = true;
+  }, 2500);
+}
+
+function showConfirmModal(message) {
+  confirmModalMessage.textContent = message;
+  confirmModal.hidden = false;
+
+  return new Promise((resolve) => {
+    function cleanup(result) {
+      confirmModal.hidden = true;
+      confirmModalConfirmBtn.removeEventListener("click", onConfirm);
+      confirmModalCancelBtn.removeEventListener("click", onCancel);
+      confirmModal.removeEventListener("click", onOverlayClick);
+      resolve(result);
+    }
+    function onConfirm() {
+      cleanup(true);
+    }
+    function onCancel() {
+      cleanup(false);
+    }
+    function onOverlayClick(e) {
+      if (e.target === confirmModal) cleanup(false);
+    }
+    confirmModalConfirmBtn.addEventListener("click", onConfirm);
+    confirmModalCancelBtn.addEventListener("click", onCancel);
+    confirmModal.addEventListener("click", onOverlayClick);
+  });
+}
+
 function setStatusPill(status) {
   statusPill.className = "pill";
   const map = {
@@ -301,17 +348,61 @@ async function loadProjectList() {
     return;
   }
   for (const p of res.projects) {
-    const item = document.createElement("button");
-    item.type = "button";
+    const item = document.createElement("div");
     item.className = "history-item";
+
+    const openBtn = document.createElement("button");
+    openBtn.type = "button";
+    openBtn.className = "history-item-open";
     const date = p.created_at ? new Date(p.created_at).toLocaleString("tr-TR") : "";
-    item.innerHTML = `
+    openBtn.innerHTML = `
       <strong>${escapeHtml(p.project_name)}</strong>
       <span class="muted">${escapeHtml(p.recommended_continent || "-")} · ${escapeHtml(date)}</span>
       <div class="module-badges">${buildModuleBadges(p.modules_run)}</div>`;
-    item.addEventListener("click", () => openProjectDetail(p.id));
+    openBtn.addEventListener("click", () => openProjectDetail(p.id));
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.className = "history-item-delete";
+    deleteBtn.title = "Projeyi sil";
+    deleteBtn.setAttribute("aria-label", "Projeyi sil");
+    deleteBtn.textContent = "🗑";
+    deleteBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      deleteProject(p.id, p.project_name);
+    });
+
+    item.appendChild(openBtn);
+    item.appendChild(deleteBtn);
     historyList.appendChild(item);
   }
+}
+
+async function deleteProject(projectId, projectName) {
+  const confirmed = await showConfirmModal(
+    `"${projectName}" projesini silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.`
+  );
+  if (!confirmed) return;
+
+  try {
+    const res = await fetch(`/api/projects/${projectId}`, { method: "DELETE" });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || "Silme işlemi başarısız oldu.");
+    }
+  } catch (err) {
+    showToast(err.message, "error");
+    return;
+  }
+
+  if (currentHistoryProjectId === projectId) {
+    currentHistoryProjectId = null;
+    historyDetailPanel.hidden = true;
+    historyResults.innerHTML = "";
+  }
+
+  showToast("Proje silindi.", "success");
+  await loadProjectList();
 }
 
 async function openProjectDetail(projectId) {

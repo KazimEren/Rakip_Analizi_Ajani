@@ -142,6 +142,17 @@ def get_project(project_id: str) -> JSONResponse:
     return JSONResponse({"available": True, **project})
 
 
+@app.delete("/api/projects/{project_id}")
+def delete_project(project_id: str) -> JSONResponse:
+    settings = get_settings()
+    dry_run = settings.resolve_dry_run(None)
+    repository = get_repository(settings, dry_run)
+    deleted = repository.delete_project(project_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Proje bulunamadı.")
+    return JSONResponse({"deleted": True, "project_id": project_id})
+
+
 @app.post("/api/projects/{project_id}/content-skeletons")
 def trigger_content_skeletons(project_id: str, payload: ContentSkeletonRequest) -> JSONResponse:
     if job_manager.is_running():

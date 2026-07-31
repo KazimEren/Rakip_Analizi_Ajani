@@ -85,3 +85,39 @@ def test_local_json_repository_save_with_empty_list_is_a_noop(tmp_path):
     project = repo.get_project(str(market.id))
     assert project["viral_contents"] == []
     assert project["content_skeletons"] == []
+
+
+def test_local_json_repository_delete_project_removes_it(tmp_path):
+    repo = LocalJsonRepository(str(tmp_path))
+    market = MarketAndGapAnalysis(project_name="P1")
+    repo.save_market_analysis(market)
+
+    assert repo.get_project(str(market.id)) is not None
+    assert any(p["id"] == str(market.id) for p in repo.list_projects())
+
+    deleted = repo.delete_project(str(market.id))
+
+    assert deleted is True
+    assert repo.get_project(str(market.id)) is None
+    assert not any(p["id"] == str(market.id) for p in repo.list_projects())
+
+
+def test_local_json_repository_delete_unknown_project_returns_false(tmp_path):
+    repo = LocalJsonRepository(str(tmp_path))
+
+    assert repo.delete_project("00000000-0000-0000-0000-000000000000") is False
+
+
+def test_local_json_repository_delete_only_removes_the_targeted_project(tmp_path):
+    repo = LocalJsonRepository(str(tmp_path))
+    market1 = MarketAndGapAnalysis(project_name="P1")
+    market2 = MarketAndGapAnalysis(project_name="P2")
+    repo.save_market_analysis(market1)
+    repo.save_market_analysis(market2)
+
+    repo.delete_project(str(market1.id))
+
+    assert repo.get_project(str(market1.id)) is None
+    assert repo.get_project(str(market2.id)) is not None
+    remaining_ids = {p["id"] for p in repo.list_projects()}
+    assert remaining_ids == {str(market2.id)}
