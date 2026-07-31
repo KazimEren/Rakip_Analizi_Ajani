@@ -40,6 +40,11 @@ SKELETON_FIELDS = [
     "tier_label",
     "skeleton_data",
     "status",
+    "source_post_url",
+    "concept_group_id",
+    "concept_summary",
+    "video_generated_at",
+    "video_generation_count",
     "created_at",
 ]
 
@@ -90,6 +95,17 @@ def test_full_pipeline_dry_run_writes_schema_valid_output(tmp_path):
     for row in skeleton_rows:
         for field in SKELETON_FIELDS:
             assert field in row
+
+    # Concept grouping: the 3 tiers derived from the same source post share
+    # one concept_group_id and concept_summary, and each source post's
+    # source_post_url shows up on exactly 3 rows (one per tier).
+    group_ids = [row["concept_group_id"] for row in skeleton_rows]
+    assert len(set(group_ids)) == len(viral_rows)
+    for group_id in set(group_ids):
+        group_rows = [row for row in skeleton_rows if row["concept_group_id"] == group_id]
+        assert len(group_rows) == 3
+        assert len({row["concept_summary"] for row in group_rows}) == 1
+        assert len({row["source_post_url"] for row in group_rows}) == 1
 
     projects = repository.list_projects()
     assert any(p["id"] == str(market_analysis.id) for p in projects)

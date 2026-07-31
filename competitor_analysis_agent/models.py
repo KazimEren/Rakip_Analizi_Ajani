@@ -167,6 +167,15 @@ class ContentSkeleton(BaseModel):
     tier_label: str
     skeleton_data: dict
     status: str = "PENDING"
+    # Taranan orijinal viral gönderinin URL/ID'si -- pipeline'daki de-dup
+    # kontrolü bu alan üzerinden yapılır (bkz. repository.get_existing_source_post_urls).
+    source_post_url: str | None = None
+    # Aynı viral içerikten türetilen 3 tier kaydını birbirine bağlar; bir
+    # gruptaki 3 ContentSkeleton da aynı concept_group_id'yi taşır.
+    concept_group_id: uuid.UUID | None = None
+    concept_summary: str | None = None
+    video_generated_at: datetime | None = None
+    video_generation_count: int = 0
     created_at: datetime = Field(default_factory=_utcnow)
 
     @field_validator("tier_type")
@@ -187,5 +196,10 @@ class ContentSkeleton(BaseModel):
             "tier_label": self.tier_label,
             "skeleton_data": self.skeleton_data,
             "status": self.status,
+            "source_post_url": self.source_post_url,
+            "concept_group_id": str(self.concept_group_id) if self.concept_group_id else None,
+            "concept_summary": self.concept_summary,
+            "video_generated_at": self.video_generated_at.isoformat() if self.video_generated_at else None,
+            "video_generation_count": self.video_generation_count,
             "created_at": self.created_at.isoformat(),
         }

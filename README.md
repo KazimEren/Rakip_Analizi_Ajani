@@ -63,6 +63,19 @@ PostgREST'in şema önbelleği yeni kolonları hemen görmeyebilir -- birkaç
 saniye içinde kendiliğinden yenilenir; hemen denemek isterseniz aynı
 bağlantıyla `NOTIFY pgrst, 'reload schema';` çalıştırın.
 
+**Şema notu (içerik de-dup + konsept gruplama):** `content_skeletons`'a
+`source_post_url` (taranan orijinal viral gönderinin URL/ID'si -- pipeline
+bunu daha önce işlenmiş gönderileri atlamak için kullanır), `concept_group_id`
+ve `concept_summary` (aynı viral içerikten türetilen 3 tier'i birbirine
+bağlayan grup kimliği ve özeti), `video_generated_at` ve
+`video_generation_count` eklendi. Yukarıdaki migration'ı zaten uyguladıysanız
+(veya daha önce hiç uygulamadıysanız), bu ek migration'ı da aynı şekilde
+uygulayın:
+
+```bash
+python -c "from competitor_analysis_agent.config import get_settings; import psycopg2; s=get_settings(); c=psycopg2.connect(s.supabase_db_url); c.autocommit=True; c.cursor().execute(open('competitor_analysis_agent/db/migrate_v3_content_dedup_and_grouping.sql', encoding='utf-8').read()); print('applied')"
+```
+
 ## Çalıştırma
 
 ```bash

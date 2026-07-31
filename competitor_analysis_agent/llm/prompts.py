@@ -278,6 +278,9 @@ def step6_content_tiering_prompt(item: RawContentItem, viral: ViralContent) -> t
         "- tier3_ozgun (Re-imagined): keep the same core message and emotion, but write it "
         "entirely from scratch in our own original voice and structure -- it should not "
         "read like a paraphrase of the original.\n"
+        "Also produce concept_summary: a 1-2 sentence summary of what this source content's "
+        "core topic/purpose is -- this single summary represents the whole group of 3 tiers "
+        "derived from it, not any one tier individually.\n"
         "Write every field entirely in Turkish, even though the source content below may be "
         "in another language."
     )
@@ -290,7 +293,7 @@ def step6_content_tiering_prompt(item: RawContentItem, viral: ViralContent) -> t
         f"- Body/Value (7-25s): {viral.body_and_value}\n"
         f"- CTA (25-30s): {viral.call_to_action}\n"
         f"- Why it works: {viral.overall_summary}\n\n"
-        "Produce tier1_ayna, tier2_hibrit and tier3_ozgun, each with hook/intro/body/cta "
-        "fields, in Turkish."
+        "Produce tier1_ayna, tier2_hibrit, tier3_ozgun (each with hook/intro/body/cta fields) "
+        "and concept_summary, all in Turkish."
     )
     return system, user

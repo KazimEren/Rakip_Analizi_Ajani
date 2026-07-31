@@ -108,6 +108,65 @@ def test_local_json_repository_delete_unknown_project_returns_false(tmp_path):
     assert repo.delete_project("00000000-0000-0000-0000-000000000000") is False
 
 
+def test_local_json_repository_get_existing_source_post_urls_is_empty_when_nothing_saved(tmp_path):
+    repo = LocalJsonRepository(str(tmp_path))
+
+    assert repo.get_existing_source_post_urls() == set()
+
+
+def test_local_json_repository_get_existing_source_post_urls_collects_across_projects(tmp_path):
+    """De-dup must be global, not scoped to one project -- the same viral
+    post shouldn't be re-analyzed just because it now belongs to a different
+    project's run."""
+    repo = LocalJsonRepository(str(tmp_path))
+    market1 = MarketAndGapAnalysis(project_name="P1")
+    market2 = MarketAndGapAnalysis(project_name="P2")
+    repo.save_market_analysis(market1)
+    repo.save_market_analysis(market2)
+
+    cs1 = ContentSkeleton(
+        project_id=market1.id,
+        competitor_name="A",
+        platform="TikTok",
+        tier_type=1,
+        tier_label="Ayna",
+        skeleton_data={"hook": "x", "intro": "x", "body": "x", "cta": "x"},
+        source_post_url="https://tiktok.com/@a/video/1",
+    )
+    cs2 = ContentSkeleton(
+        project_id=market1.id,
+        competitor_name="A",
+        platform="TikTok",
+        tier_type=2,
+        tier_label="Hibrit",
+        skeleton_data={"hook": "x", "intro": "x", "body": "x", "cta": "x"},
+        source_post_url="https://tiktok.com/@a/video/1",
+    )
+    cs3 = ContentSkeleton(
+        project_id=market2.id,
+        competitor_name="B",
+        platform="Instagram",
+        tier_type=1,
+        tier_label="Ayna",
+        skeleton_data={"hook": "x", "intro": "x", "body": "x", "cta": "x"},
+        source_post_url="https://instagram.com/reel/b1",
+    )
+    cs_no_url = ContentSkeleton(
+        project_id=market2.id,
+        competitor_name="B",
+        platform="Instagram",
+        tier_type=2,
+        tier_label="Hibrit",
+        skeleton_data={"hook": "x", "intro": "x", "body": "x", "cta": "x"},
+    )
+    repo.save_content_skeletons([cs1, cs2])
+    repo.save_content_skeletons([cs3, cs_no_url])
+
+    urls = repo.get_existing_source_post_urls()
+
+    assert urls == {"https://tiktok.com/@a/video/1", "https://instagram.com/reel/b1"}
+
+
 def test_local_json_repository_delete_only_removes_the_targeted_project(tmp_path):
     repo = LocalJsonRepository(str(tmp_path))
     market1 = MarketAndGapAnalysis(project_name="P1")

@@ -48,6 +48,18 @@ CREATE TABLE IF NOT EXISTS content_skeletons (
     tier_label TEXT NOT NULL,
     skeleton_data JSONB NOT NULL,  -- {hook, intro, body, cta} temiz JSON
     status TEXT NOT NULL DEFAULT 'PENDING',
+    -- Taranan orijinal viral gönderinin URL/ID'si -- aynı içeriğin tekrar
+    -- taranıp analiz edilmesini engellemek (de-dup) için kullanılır.
+    source_post_url TEXT,
+    -- Aynı viral içerikten türetilen 3 tier kaydını (Ayna/Hibrit/Özgün)
+    -- birbirine bağlayan grup kimliği; her grup için tek bir concept_group_id
+    -- üretilir ve 3 satıra da aynen yazılır.
+    concept_group_id UUID,
+    -- O viral içeriğin genel amacını/konusunu özetleyen 1-2 cümlelik metin;
+    -- bir gruptaki 3 satırda da aynıdır.
+    concept_summary TEXT,
+    video_generated_at TIMESTAMP WITH TIME ZONE,
+    video_generation_count INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -62,3 +74,14 @@ CREATE INDEX IF NOT EXISTS idx_viral_contents_project_id
 
 CREATE INDEX IF NOT EXISTS idx_content_skeletons_project_id
     ON content_skeletons (project_id);
+
+-- Bir viral gönderi 3 tier satırı ürettiği için (source_post_url, tier_type)
+-- bileşik olarak unique: aynı gönderi için aynı tier ikinci kez yazılamaz,
+-- ama 3 farklı tier satırı serbestçe var olabilir. NULL source_post_url'ler
+-- (content_url'siz taramalar) kısıtlamaya dahil edilmez.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_content_skeletons_source_post_url_tier
+    ON content_skeletons (source_post_url, tier_type)
+    WHERE source_post_url IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_content_skeletons_concept_group_id
+    ON content_skeletons (concept_group_id);

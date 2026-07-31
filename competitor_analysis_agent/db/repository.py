@@ -17,6 +17,8 @@ class Repository(Protocol):
 
     def save_content_skeletons(self, records: list[ContentSkeleton]) -> None: ...
 
+    def get_existing_source_post_urls(self) -> set[str]: ...
+
     def list_projects(self) -> list[dict]: ...
 
     def get_project(self, project_id: str) -> dict | None: ...
@@ -44,6 +46,18 @@ class SupabaseRepository:
             return
         rows = [r.to_supabase_row() for r in records]
         self._client.table("content_skeletons").insert(rows).execute()
+
+    def get_existing_source_post_urls(self) -> set[str]:
+        """Every `source_post_url` already saved in content_skeletons, across
+        all projects -- used by the content pipeline to skip re-scraping and
+        re-analyzing a viral post it has already tiered before."""
+        response = (
+            self._client.table("content_skeletons")
+            .select("source_post_url")
+            .not_.is_("source_post_url", "null")
+            .execute()
+        )
+        return {row["source_post_url"] for row in (response.data or []) if row.get("source_post_url")}
 
     def list_projects(self) -> list[dict]:
         response = (
@@ -129,6 +143,16 @@ class LocalJsonRepository:
         data = self._read_project(project_id)
         data["content_skeletons"] = data.get("content_skeletons", []) + [r.to_supabase_row() for r in records]
         self._write_project(project_id, data)
+
+    def get_existing_source_post_urls(self) -> set[str]:
+        urls: set[str] = set()
+        for path in self._projects_dir.glob("*.json"):
+            data = json.loads(path.read_text(encoding="utf-8"))
+            for row in data.get("content_skeletons", []):
+                url = row.get("source_post_url")
+                if url:
+                    urls.add(url)
+        return urls
 
     def list_projects(self) -> list[dict]:
         projects: list[dict] = []

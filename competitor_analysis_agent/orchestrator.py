@@ -16,7 +16,7 @@ import logging
 import re
 
 from competitor_analysis_agent.config import Settings
-from competitor_analysis_agent.db.repository import LocalJsonRepository, get_repository
+from competitor_analysis_agent.db.repository import LocalJsonRepository, Repository, get_repository
 from competitor_analysis_agent.llm.gemini_client import LLMClient, get_llm_client
 from competitor_analysis_agent.models import (
     Competitor,
@@ -133,21 +133,43 @@ def select_top_performing_content(items: list[RawContentItem], count: int) -> li
     return sorted(items, key=_engagement_score, reverse=True)[:count]
 
 
+def _filter_already_analyzed(items: list[RawContentItem], repository: Repository) -> list[RawContentItem]:
+    """Skips content whose `content_url` is already saved as a
+    `source_post_url` in content_skeletons -- prevents re-scraping/re-tiering
+    (and paying for the LLM calls) on a viral post the pipeline has already
+    processed in a previous run. Items without a content_url are always
+    kept, since there's nothing to de-dup against."""
+    existing_urls = repository.get_existing_source_post_urls()
+    if not existing_urls:
+        return items
+    filtered = [item for item in items if not item.content_url or item.content_url not in existing_urls]
+    skipped = len(items) - len(filtered)
+    if skipped:
+        logger.info("ADIM 5: %d içerik daha önce analiz edildiği için atlandı (de-dup).", skipped)
+    return filtered
+
+
 def run_content_module(
     llm: LLMClient,
     scraper: ScraperProtocol,
     competitors: list[Competitor],
     count: int = DEFAULT_CONTENT_SKELETON_COUNT,
+    repository: Repository | None = None,
 ) -> tuple[list[ViralContent], list[ContentSkeleton]]:
     """ADIM 5 + Tier üretimi (checkbox 3: Tutan İçerik İskeletleri).
 
     Scrape edilen tüm içerikler arasından en yüksek etkileşimli `count`
     tanesi seçilir; yalnızca onlar için anatomi analizi (ADIM 5) ve ardından
-    3 tier'li (Ayna/Hibrit/Özgün) içerik iskeleti üretilir."""
+    3 tier'li (Ayna/Hibrit/Özgün) içerik iskeleti üretilir. `repository`
+    verilirse, daha önce content_skeletons'a kaydedilmiş source_post_url'ler
+    seçim yapılmadan önce elenir (de-dup)."""
     logger.info("ADIM 5: Rakiplerin sosyal medya içerikleri taranıyor (Instagram/TikTok/YouTube/LinkedIn)...")
     content_items: list[RawContentItem] = []
     for competitor in competitors:
         content_items.extend(scraper.scrape_social_content(competitor, SOCIAL_PLATFORMS))
+
+    if repository is not None:
+        content_items = _filter_already_analyzed(content_items, repository)
 
     top_items = select_top_performing_content(content_items, count)
     logger.info(
@@ -202,11 +224,13 @@ def run_pipeline(
     if resolved_modules["gap_analysis"]:
         strategic_value_adds = run_gap_module(llm, scraper, competitors)
 
+    repository = get_repository(settings, dry_run)
+
     viral_contents: list[ViralContent] = []
     content_skeletons: list[ContentSkeleton] = []
     if resolved_modules["content_skeletons"]:
         viral_contents, content_skeletons = run_content_module(
-            llm, scraper, competitors, content_skeleton_count
+            llm, scraper, competitors, content_skeleton_count, repository=repository
         )
 
     market_analysis = MarketAndGapAnalysis(
@@ -224,7 +248,6 @@ def run_pipeline(
         cs.project_id = market_analysis.id
 
     logger.info("Sonuçlar kaydediliyor...")
-    repository = get_repository(settings, dry_run)
     try:
         repository.save_market_analysis(market_analysis)
         repository.save_viral_contents(viral_contents)

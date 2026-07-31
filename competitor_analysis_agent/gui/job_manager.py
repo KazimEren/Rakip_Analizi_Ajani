@@ -204,7 +204,10 @@ class JobManager:
             llm = get_llm_client(settings, dry_run)
             scraper = get_scraper(settings, dry_run)
             competitors = discover_competitors(llm, scraper, project_description)
-            viral_contents, content_skeletons = run_content_module(llm, scraper, competitors, count)
+            repository = get_repository(settings, dry_run)
+            viral_contents, content_skeletons = run_content_module(
+                llm, scraper, competitors, count, repository=repository
+            )
 
             project_uuid = uuid.UUID(project_id)
             for vc in viral_contents:
@@ -212,7 +215,6 @@ class JobManager:
             for cs in content_skeletons:
                 cs.project_id = project_uuid
 
-            repository = get_repository(settings, dry_run)
             repository.save_viral_contents(viral_contents)
             repository.save_content_skeletons(content_skeletons)
 

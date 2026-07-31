@@ -4,6 +4,8 @@ iskeleti üretimi -- İçerik Oluşturma Ajanı'nın doğrudan okuyacağı temiz
 
 from __future__ import annotations
 
+import uuid
+
 from pydantic import BaseModel
 
 from competitor_analysis_agent.llm.gemini_client import LLMClient
@@ -22,12 +24,17 @@ class Step6LLMOutput(BaseModel):
     tier1_ayna: _TierFields
     tier2_hibrit: _TierFields
     tier3_ozgun: _TierFields
+    concept_summary: str
 
 
 def run_step6_tiering(llm: LLMClient, item: RawContentItem, viral: ViralContent) -> list[ContentSkeleton]:
     system, user = step6_content_tiering_prompt(item, viral)
     result = llm.complete_structured(system, user, Step6LLMOutput)
 
+    # All 3 tiers derived from this one source post share the same
+    # concept_group_id/concept_summary so a downstream consumer can tell
+    # they're variations of the same underlying viral content.
+    concept_group_id = uuid.uuid4()
     tiers: list[tuple[int, _TierFields]] = [
         (1, result.tier1_ayna),
         (2, result.tier2_hibrit),
@@ -41,6 +48,9 @@ def run_step6_tiering(llm: LLMClient, item: RawContentItem, viral: ViralContent)
             tier_type=tier_type,
             tier_label=TIER_LABELS[tier_type],
             skeleton_data=fields.model_dump(),
+            source_post_url=item.content_url,
+            concept_group_id=concept_group_id,
+            concept_summary=result.concept_summary,
         )
         for tier_type, fields in tiers
     ]

@@ -174,5 +174,9 @@ MOCK_LLM_RESPONSES: dict[str, dict] = {
             "body": "Ürünümüzün otomatik kategorilendirme ve ortak bütçe özelliklerini kendi özgün örnek senaryomuzla anlatırız.",
             "cta": "Kendi marka sesimizle yazılmış, özgün bir kaydetme/takip çağrısı.",
         },
+        "concept_summary": (
+            "Maaş günü kaygısını uygulamanın otomatik kategorilendirme özelliğiyle çözen, "
+            "kaydedilebilir bir 'uyarı işaretleri' formatındaki bütçe farkındalığı içeriği."
+        ),
     },
 }
