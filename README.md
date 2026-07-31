@@ -47,8 +47,21 @@ modül için `NULL` kalır). `viral_contents`'e `project_id` eklendi ve yeni
 `content_skeletons` tablosu (Tier 1/2/3 = Ayna/Hibrit/Özgün içerik
 iskeletleri) tanımlandı. `CREATE TABLE IF NOT EXISTS` var olan bir tabloyu
 değiştirmez, sadece eksikse oluşturur -- bu şemadan önce oluşturulmuş bir
-Supabase projeniz varsa, önce `market_and_gap_analysis` ve `viral_contents`
-tablolarını Supabase Dashboard'dan silip `setup_db.py`'yi tekrar çalıştırın.
+Supabase projeniz varsa (yani `setup_db.py` bu güncellemeden önce en az bir
+kez çalıştırılmışsa), tabloları silmeden şu ek migration'ı uygulayın (sadece
+`ADD COLUMN`/kısıtlama gevşetme, veri kaybı riski yok):
+
+```bash
+# SUPABASE_DB_URL .env içinde tanımlıysa doğrudan uygulanır, değilse
+# competitor_analysis_agent/db/migrate_v2_selective_modules.sql içeriğini
+# Supabase Dashboard > SQL Editor'e yapıştırıp çalıştırın.
+python -c "from competitor_analysis_agent.config import get_settings; import psycopg2; s=get_settings(); c=psycopg2.connect(s.supabase_db_url); c.autocommit=True; c.cursor().execute(open('competitor_analysis_agent/db/migrate_v2_selective_modules.sql', encoding='utf-8').read()); print('applied')"
+```
+
+Doğrudan `psycopg2` ile (Supabase'in yönetim API'si yerine) uygulandığından,
+PostgREST'in şema önbelleği yeni kolonları hemen görmeyebilir -- birkaç
+saniye içinde kendiliğinden yenilenir; hemen denemek isterseniz aynı
+bağlantıyla `NOTIFY pgrst, 'reload schema';` çalıştırın.
 
 ## Çalıştırma
 
