@@ -36,6 +36,13 @@ const confirmModalCancelBtn = document.getElementById("confirm-modal-cancel");
 const confirmModalConfirmBtn = document.getElementById("confirm-modal-confirm");
 const toastEl = document.getElementById("toast");
 
+// Belt-and-suspenders: the modal must never be visible on first load,
+// regardless of markup/CSS state -- explicitly force it closed once the DOM
+// is ready instead of relying solely on the `hidden` attribute in index.html.
+document.addEventListener("DOMContentLoaded", () => {
+  confirmModal.hidden = true;
+});
+
 let toastTimer = null;
 
 function showToast(message, kind = "success") {

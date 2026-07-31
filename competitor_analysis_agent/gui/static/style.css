@@ -276,13 +276,22 @@ textarea, input[type="text"], input[type="number"] {
 #history-log-output { height: 160px; margin: 16px 0; }
 
 .modal-overlay {
+  display: none;
   position: fixed;
   inset: 0;
   background: rgba(5,7,10,0.6);
-  display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
+}
+/* An unconditional `display: flex` on .modal-overlay would outrank the
+   browser's own `[hidden] { display: none }` UA-stylesheet rule (author
+   styles always beat UA defaults, regardless of selector specificity), so
+   the modal stayed visible and blocked every click behind it even with the
+   `hidden` attribute present. Only show it once `hidden` is explicitly
+   removed by app.js. */
+.modal-overlay:not([hidden]) {
+  display: flex;
 }
 .modal-box {
   background: var(--panel);
